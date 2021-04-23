@@ -35,7 +35,6 @@
 			const max = Math.max(from, to);
 			const min = Math.min(from, to);
 			const step = (max - min) / count;
-			console.log(min === to)
 			allAnimation.push({style, from, to, step, reverse: min === to})
 		});
 
@@ -43,7 +42,6 @@
 		const rafAnimation = function () {
 
 			allAnimation.forEach((item) => {
-				console.log(item.from, item.step)
 				if (item.reverse) {
 					item.from -= item.step
 				} else {
@@ -54,7 +52,6 @@
 			})
 
 			counter++;
-			console.log(allAnimation)
 			if (counter < count) {
 
 				requestAnimationFrame(rafAnimation);
@@ -155,15 +152,15 @@ function init() {
 
 
 	const openYoutubeModal = e => {
-			e.preventDefault();
-			const target = e.target.closest('.youtube-modal');
-			if (!target) return;
-
-			const href = target.href;
-			const search = href.includes('youtube');
-			let idVideo = search ? href.match(/(\?|&)v=([^&]+)/)[2] : href.match(/(\.be\/)([^&]+)/)[2];
-
-			if (idVideo.length === 0) return;
+		const target = e.target.closest('.youtube-modal');
+		if (!target) return;
+		
+		const href = target.href;
+		const search = href.includes('youtube');
+		let idVideo = search ? href.match(/(\?|&)v=([^&]+)/)[2] : href.match(/(\.be\/)([^&]+)/)[2];
+		
+		if (idVideo.length === 0) return;
+		e.preventDefault();
 
 
 			animation(overlay, {

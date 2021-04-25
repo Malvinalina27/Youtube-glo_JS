@@ -1,14 +1,13 @@
 'use strict';
 
+const content = document.querySelector('.content');
+const subscriptionsList = document.querySelector('.subscriptions-list');
+const navLinkLiked = document.querySelectorAll('.nav-link-liked');
 //меню show more
 const navMenuMore = document.querySelector('.nav-menu-more');
 const showMore = document.querySelector('.show-more');
 // поиск
 const formSearch = document.querySelector('.form-search');
-// карточки с видео
-const gloAcademyList = document.querySelector('.glo-academy-list');
-const trendingList = document.querySelector('.trending-list');
-const musicList = document.querySelector('.music-list');
 //для youtubeAPI
 const authBtn = document.querySelector('.auth-btn');
 const userAvatar = document.querySelector('.user-avatar');
@@ -25,7 +24,7 @@ const createCard = dataVideo => {
   const dateVideo = dataVideo.snippet.publishedAt; //время выгрузки видео
   const channelTitle = dataVideo.snippet.channelTitle; // название видео-канала
 
-  const card = document.createElement('div');
+  const card = document.createElement('li');
   card.classList.add('video-card');
   card.innerHTML = `
     <div class="video-thumb">
@@ -36,8 +35,8 @@ const createCard = dataVideo => {
     <h3 class="video-title">${titleVideo}</h3>
     <div class="video-info">
       <span class="video-counter">
-        ${viewCount ? `<span class="video-views">${viewCount} views</span>` : ''}    
-        <span class="video-date">${(new Date(dateVideo)).toLocaleString("ru-RU")}</span>
+        ${viewCount ? `<span class="video-views">${getViewer(viewCount)}</span>` : ''}    
+        <span class="video-date">${getDate(dateVideo)}</span>
       </span>
       <span class="video-channel">${channelTitle}</span>
     </div>
@@ -45,12 +44,79 @@ const createCard = dataVideo => {
   return card;
 };
 
-// перебираю карточки и вставляю нужные данные
-const createList = (wrapper, listVideo) => {
-  wrapper.textContent = '';
-  listVideo.forEach(item => wrapper.append(createCard(item)));
+// создание section с карточками, перебор карточек и вставляю нужные данные
+const createList = (listVideo, title, clear) => {
+  
+  const channel = document.createElement('section');
+  channel.classList.add('channel');
+
+  if (clear) {
+    content.textContent = '';    
+  }
+  if (title) {
+    const header = document.createElement('h2');
+    header.textContent = title;
+    channel.insertAdjacentElement('afterbegin', header);
+  }
+
+  const wrapper = document.createElement('ul');
+  wrapper.classList.add('video-list');
+  channel.insertAdjacentElement('beforeend', wrapper);
+
+  listVideo.forEach(item => {
+    const card = createCard(item);
+    wrapper.append(card)
+  });
+
+  content.insertAdjacentElement('beforeend', channel);
 };
 
+// список подписок, ошибок нет 
+const createSubList = listVideo => {
+  // чистится лист с подписками
+  subscriptionsList.textContent = '';
+  listVideo.forEach(item => {
+    const { resourceId: { channelId: id }, title, thumbnails: { high: { url } } } = item.snippet;
+    const html = `
+      <li class="nav-item">
+        <a href="#" class="nav-link" data-channel-id="${id}" data-title="${title}">
+          <img src="${url}" alt="${title}" class="nav-image">
+          <span class="nav-text">${title} </span>
+        </a>
+      </li>
+    `;
+    // создаётся актуальный лист с подписками
+    subscriptionsList.insertAdjacentHTML('beforeend', html);
+  });
+};
+
+
+// дата (3 дня назад)
+const getDate = date => {
+  const currentDay = Date.parse(new Date());
+  const days = Math.round((currentDay - Date.parse(new Date(date))) / 86400000);
+  if (days > 30) {
+    if (days > 60) {
+      return Math.round(days/30) + ' month ago';
+    }
+    return 'One month ago';
+  }
+  
+  if (days > 1) {
+    return Math.round(days) + ' days ago';
+  }
+  return 'One day ago';
+};
+// количество просмотров
+const getViewer = count => {
+  if (count >= 1000000) {
+    return Math.round(count / 1000000) + 'M views';
+  }
+  if (count >= 1000) {
+    return Math.round(count / 1000) + 'K views';
+  }
+  return count + ' views';
+};
 
 // youtube API
 
@@ -59,8 +125,9 @@ const handleSuccessAuth = data => {
   authBtn.classList.add('hide');
   userAvatar.classList.remove('hide');
   auth.style.border = 'none';
+  userAvatar.alt = data.getName();
   userAvatar.src = data.getImageUrl();
-  userAvatar.alt = data.getName;
+  requestSubscriptions(createSubList);
 };
 const handleNoAuth = () => {
   authBtn.classList.remove('hide');
@@ -164,7 +231,7 @@ const requestSearch = (searchText, callback, maxResults = 12) => {
   })
 }
 
-// вывод в subscriptions !
+// вывод в subscriptions
 const requestSubscriptions = (callback, maxResults = 6) => {
   gapi.client.youtube.subscriptions.list({
     part: 'snippet',
@@ -172,23 +239,36 @@ const requestSubscriptions = (callback, maxResults = 6) => {
     maxResults,
     order: 'relevance',
   }).execute(response => {
-    callback(response.items)
+    callback(response.items);
+  })
+};
+
+const requestLike = (callback, maxResults = 6) => {
+  gapi.client.youtube.videos.list({
+    part: 'snippet, statistics',
+    maxResults,
+    myRating: 'like',
+  }).execute(response => {
+    callback(response.items);
   })
 };
 
 // данные с каналов
 const loadScreen = () => {
+  
   requestVideos('UCVswRUcKC-M35RzgPRv8qUg', data => {
-    createList(gloAcademyList, data);
-  })
+    content.textContent = '';
+    createList(data, 'Glo Academy');
 
-  requestTrending(data => {
-    createList(trendingList, data);
-  })
+    requestTrending(data => {
+      createList(data, 'Популярные видео');
 
-  requestMusic(data => {
-    createList(musicList, data);    
-  })
+      requestMusic(data => {
+        createList(data, 'Популярная музка');    
+      });
+    });  
+  });
+
 };
 
 //меню show more
@@ -202,7 +282,26 @@ formSearch.addEventListener('submit', e => {
   e.preventDefault();
   const value = formSearch.elements.search.value;
   requestSearch(value, data => {
-    console.log(data);
+    createList(data, 'Результат поиска', true);
   });
 });
 
+subscriptionsList.addEventListener('click', e => {
+  e.preventDefault();
+  const target = e.target; 
+  const linkChannel = target.closest('.nav-link');
+  const channelId = linkChannel.dataset.channelId;
+  const title = linkChannel.dataset.title;
+  requestVideos(channelId, data => {
+    createList(data, title, true);
+  }, 12);
+});
+
+navLinkLiked.forEach(elem => {
+  elem.addEventListener('click', e => {
+    e.preventDefault();
+    requestLike(data => {
+      createList(data, 'Понравившиеся видео', true)
+    }, 9)
+  });
+});
